@@ -8,85 +8,160 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class BasicApplicationContext implements ApplicationContext {
-  private final Logger logger = LoggerFactory.getLogger(BasicApplicationContext.class);
-  private final Map<Class<?>, Object> instances;
-  private final Map<Class<?>, List<List<Class<?>>>> dependencyGraph;
-  private final List<ComponentPostProcessor> componentPostProcessors;
-  private final Map<Class<?>, List<Class<?>>> interfaceToImplementationsMap;
+  private static final Logger logger = LoggerFactory.getLogger(BasicApplicationContext.class);
 
-  public BasicApplicationContext() {
-    instances = new HashMap<>();
-    dependencyGraph = new HashMap<>();
-    interfaceToImplementationsMap = new HashMap<>();
-    componentPostProcessors = new ArrayList<>();
-  }
+  private final Map<Class<?>, Object> instances = new HashMap<>();
+  private final Map<Class<?>, List<List<Class<?>>>> dependencyGraph = new HashMap<>();
+  private final List<ComponentPostProcessor> componentPostProcessors = new ArrayList<>();
+  private final Map<Class<?>, List<Class<?>>> interfaceToImplementationsMap = new HashMap<>();
 
   @Override
   public void register(Class<?>... classes)
-      throws UnsatisfiedDependencyException,
-          NoImplementationFoundException,
-          InstatitationException {
+          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
     buildDependencyGraph(classes);
     instantiateComponents();
     runPostProcessors();
   }
 
   private void buildDependencyGraph(Class<?>... classes) {
-
     for (Class<?> clazz : classes) {
       if (clazz.isInterface()) {
-        interfaceToImplementationsMap.put(clazz, new ArrayList<>());
+        interfaceToImplementationsMap.putIfAbsent(clazz, new ArrayList<>());
         dependencyGraph.put(clazz, List.of());
         continue;
       }
+
       for (Class<?> iface : clazz.getInterfaces()) {
-        if (interfaceToImplementationsMap.containsKey(iface)) {
-          interfaceToImplementationsMap.get(iface).add(clazz);
-        }
+        interfaceToImplementationsMap.computeIfAbsent(iface, k -> new ArrayList<>()).add(clazz);
       }
 
-      Constructor<?>[] constructorCandidates = clazz.getConstructors();
-      List<List<Class<?>>> constructors = findValidConstructors(constructorCandidates);
-
-      if (constructors.isEmpty()) {
-        logger.warn("no valid constructor found for class: {}", clazz.getName());
+      List<List<Class<?>>> validConstructors = findValidConstructors(clazz.getConstructors());
+      if (validConstructors.isEmpty()) {
+        logger.warn("No valid constructor found for class: {}", clazz.getName());
         continue;
       }
-      constructors.sort(Comparator.comparingInt(List::size));
 
-      logger.debug(
-          "found {} valid constructor candidates for class: {}",
-          constructors.size(),
-          clazz.getName());
-      this.dependencyGraph.put(clazz, constructors);
+      validConstructors.sort(Comparator.comparingInt(List::size));
+      logger.debug("Found {} valid constructors for class: {}", validConstructors.size(), clazz.getName());
+      dependencyGraph.put(clazz, validConstructors);
     }
   }
 
-  private List<List<Class<?>>> findValidConstructors(Constructor<?>[] constructorCandidates) {
-
-    List<List<Class<?>>> validConstructors = new ArrayList<>();
-    for (Constructor<?> constructorCandidate : constructorCandidates) {
-      if (isConstrictorValid(constructorCandidate)) {
-        Class<?>[] parameters = constructorCandidate.getParameterTypes();
-        validConstructors.add(List.of(parameters));
+  private List<List<Class<?>>> findValidConstructors(Constructor<?>[] constructors) {
+    List<List<Class<?>>> valid = new ArrayList<>();
+    for (Constructor<?> constructor : constructors) {
+      if (isConstructorValid(constructor)) {
+        valid.add(List.of(constructor.getParameterTypes()));
       }
     }
-    return validConstructors;
+    return valid;
   }
 
-  private boolean isConstrictorValid(Constructor<?> constructor) {
-    for (Class<?> parameter : constructor.getParameterTypes()) {
-      if (!parameter.isAnnotationPresent(Component.class)) {
-        logger.warn("found constructor with invalid parameters");
+  private boolean isConstructorValid(Constructor<?> constructor) {
+    for (Class<?> param : constructor.getParameterTypes()) {
+      if (!param.isAnnotationPresent(Component.class)) {
+        logger.warn("Constructor with invalid parameters found: {}", constructor);
         return false;
       }
     }
     return true;
   }
 
+  private void instantiateComponents()
+          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+    for (Class<?> clazz : sortDependencyGraph()) {
+      if (!clazz.isInterface() && !instances.containsKey(clazz)) {
+        instantiateClass(clazz);
+      }
+    }
+    logger.info("Successfully created {} instances", instances.size());
+  }
+
+  private void instantiateClass(Class<?> clazz)
+          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+    for (Constructor<?> constructor : clazz.getConstructors()) {
+      try {
+        createInstanceFromConstructor(clazz, constructor);
+        return;
+      } catch (Exception e) {
+        logger.warn("Constructor failed: {} ({} left)", constructor.getName(), clazz.getConstructors().length - 1);
+        if (constructor == clazz.getConstructors()[clazz.getConstructors().length - 1]) {
+          logger.error("All constructors failed for class: {}", clazz.getName());
+          throw e;
+        }
+      }
+    }
+  }
+
+  private void createInstanceFromConstructor(Class<?> clazz, Constructor<?> constructor)
+          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+    try {
+      List<Object> args = getInstantiatedDependencies(constructor);
+      Object instance = constructor.newInstance(args.toArray());
+      instances.put(clazz, instance);
+      registerPostProcessorIfApplicable(clazz, instance);
+      logger.debug("Created instance of {}", clazz.getName());
+    } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
+      throw new InstatitationException(e);
+    }
+  }
+
+  private List<Object> getInstantiatedDependencies(Constructor<?> constructor)
+          throws NoImplementationFoundException, UnsatisfiedDependencyException {
+    List<Object> dependencies = new ArrayList<>();
+    for (Parameter parameter : constructor.getParameters()) {
+      Object dependency = parameter.getType().isInterface()
+              ? resolveInterfaceDependency(parameter)
+              : get(parameter.getType());
+
+      if (dependency == null) {
+        throw new UnsatisfiedDependencyException("Missing dependency: " + parameter.getName());
+      }
+
+      dependencies.add(dependency);
+    }
+    return dependencies;
+  }
+
+  private Object resolveInterfaceDependency(Parameter parameter)
+          throws NoImplementationFoundException, UnsatisfiedDependencyException {
+    List<Class<?>> implementations = interfaceToImplementationsMap.get(parameter.getType());
+    if (implementations == null || implementations.isEmpty()) {
+      throw new NoImplementationFoundException("No implementation found for: " + parameter.getType().getName());
+    }
+
+    Class<?> selected = selectImplementation(parameter, implementations);
+    Object dependency = get(selected);
+
+    if (dependency == null) {
+      throw new UnsatisfiedDependencyException("Unresolved dependency: " + parameter.getName());
+    }
+
+    return dependency;
+  }
+
+  private Class<?> selectImplementation(Parameter param, List<Class<?>> candidates) {
+    if (param.isAnnotationPresent(Use.class)) {
+      String requiredName = param.getAnnotation(Use.class).implementationName();
+      for (Class<?> candidate : candidates) {
+        if (candidate.getSimpleName().equals(requiredName)) {
+          return candidate;
+        }
+      }
+      logger.warn("No matching implementation named '{}' for {}", requiredName, param);
+    }
+    return candidates.getFirst();
+  }
+
+  private void registerPostProcessorIfApplicable(Class<?> clazz, Object instance) {
+    if (clazz.isAnnotationPresent(PostProcessor.class) && instance instanceof ComponentPostProcessor processor) {
+      componentPostProcessors.add(processor);
+    }
+  }
+
   private void runPostProcessors() {
-    for (Map.Entry<Class<?>, Object> entry : instances.entrySet()) {
-      for (ComponentPostProcessor processor : componentPostProcessors) {
+    for (var entry : instances.entrySet()) {
+      for (var processor : componentPostProcessors) {
         processor.postProcess(entry.getKey(), entry.getValue(), this);
       }
     }
@@ -97,159 +172,48 @@ public class BasicApplicationContext implements ApplicationContext {
     return clazz.cast(instances.get(clazz));
   }
 
-  private void instantiateComponents()
-      throws UnsatisfiedDependencyException,
-          NoImplementationFoundException,
-          InstatitationException {
-    List<Class<?>> sortedClasses = sortGraph();
-    for (Class<?> clazz : sortedClasses) {
-      createInstance(clazz);
-    }
-    logger.info("successfully created {} instances", instances.size());
-  }
-
-  private Object findInterfaceImplementation(Parameter param)
-      throws NoImplementationFoundException, UnsatisfiedDependencyException {
-    Class<?> paramType = param.getType();
-    List<Class<?>> possibleImplementations = interfaceToImplementationsMap.get(paramType);
-    if (possibleImplementations == null || possibleImplementations.isEmpty()) {
-      throw new NoImplementationFoundException("No implementation found for: " + param.getName());
-    }
-
-    Class<?> firstCandidate = takeImplementation(param, possibleImplementations);
-
-    Object dependency = get(firstCandidate);
-    if (dependency == null) {
-      throw new UnsatisfiedDependencyException(
-          "Instance of dependency is null for: " + param.getName());
-    }
-    return dependency;
-  }
-
-  private Class<?> takeImplementation(Parameter param, List<Class<?>> possibleImplementations) {
-    if (param.isAnnotationPresent(Use.class)) {
-      for (Class<?> impl : possibleImplementations) {
-        if (impl.getSimpleName().equals(param.getAnnotation(Use.class).implementationName())) {
-          return impl;
-        }
-      }
-      logger.warn(
-          "No implementation was found with the name: {}",
-          param.getAnnotation(Use.class).implementationName());
-    }
-    return possibleImplementations.getFirst();
-  }
-
-  private List<Object> instantiatedDependencies(Constructor<?> constructor)
-      throws NoImplementationFoundException, UnsatisfiedDependencyException {
-    List<Object> args = new ArrayList<>();
-    for (Parameter param : constructor.getParameters()) {
-      Class<?> parameterType = param.getType();
-
-      Object dependency =
-          parameterType.isInterface() ? findInterfaceImplementation(param) : get(parameterType);
-
-      if (dependency == null) {
-        throw new UnsatisfiedDependencyException(
-            "Instance of dependency is null for: " + param.getName());
-      }
-      args.add(dependency);
-    }
-
-    return args;
-  }
-
-  private void instantiateConstructor(Class<?> clazz, Constructor<?> constructor)
-      throws UnsatisfiedDependencyException,
-          NoImplementationFoundException,
-          InstatitationException {
-    try {
-      List<Object> args = instantiatedDependencies(constructor);
-      Object instance = constructor.newInstance(args.toArray());
-      instances.put(clazz, instance);
-      addPostProcessor(clazz, instance);
-      logger.debug("Created instance of: {}", clazz.getName());
-    } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
-      throw new InstatitationException(e);
-    }
-  }
-
-  private void createInstance(Class<?> clazz)
-      throws UnsatisfiedDependencyException,
-          NoImplementationFoundException,
-          InstatitationException {
-    if (instances.containsKey(clazz)) return;
-    if (clazz.isInterface()) return;
-    Constructor<?>[] constructors = clazz.getConstructors();
-    for (int i = 0; i < constructors.length; i++) {
-      try {
-        instantiateConstructor(clazz, constructors[i]);
-        break;
-      } catch (UnsatisfiedDependencyException
-          | NoImplementationFoundException
-          | InstatitationException e) {
-        logger.warn(
-            "Failed instantiating constructor: {} remaining constructors to try: {}",
-            constructors[i].getName(),
-            constructors.length - 1);
-        if (i == constructors.length - 1) {
-          logger.error("Failed constructing instance of {}", clazz.getName());
-          throw e;
-        }
-      }
-    }
-  }
-
-  private void addPostProcessor(Class<?> clazz, Object instance) {
-    if (clazz.isAnnotationPresent(PostProcessor.class)
-        && instance instanceof ComponentPostProcessor componentPostProcessor) {
-      componentPostProcessors.add(componentPostProcessor);
-    }
-  }
-
-  private List<Class<?>> sortGraph()
-      throws CircularDependencyException, NoImplementationFoundException {
+  private List<Class<?>> sortDependencyGraph()
+          throws CircularDependencyException, NoImplementationFoundException {
     List<Class<?>> sorted = new ArrayList<>();
     Set<Class<?>> visited = new HashSet<>();
     Set<Class<?>> visiting = new HashSet<>();
-    for (Class<?> node : dependencyGraph.keySet()) {
-      checkDependencies(node, sorted, visited, visiting);
+
+    for (Class<?> clazz : dependencyGraph.keySet()) {
+      visit(clazz, sorted, visited, visiting);
     }
     return sorted;
   }
 
-  private void checkDependencies(
-      Class<?> node, List<Class<?>> sorted, Set<Class<?>> visited, Set<Class<?>> visiting)
-      throws CircularDependencyException, NoImplementationFoundException {
-    if (visited.contains(node)) return; // if dependency got already checked -> return
-    if (visiting.contains(node))
-      throw new CircularDependencyException(); // if dependency is depending on its own -> throw
-    // exception
+  private void visit(
+          Class<?> clazz,
+          List<Class<?>> sorted,
+          Set<Class<?>> visited,
+          Set<Class<?>> visiting)
+          throws CircularDependencyException, NoImplementationFoundException {
 
-    visiting.add(node);
+    if (visited.contains(clazz)) return;
+    if (visiting.contains(clazz)) throw new CircularDependencyException();
 
-    for (List<Class<?>> constructors :
-        dependencyGraph.getOrDefault(
-            node,
-            List.of())) { // base case for recursion -> if no dependencies exists, loop won't get
-      // executed
-      for (Class<?> dependency : constructors) {
+    visiting.add(clazz);
+
+    for (List<Class<?>> constructorDeps : dependencyGraph.getOrDefault(clazz, List.of())) {
+      for (Class<?> dependency : constructorDeps) {
         if (dependency.isInterface()) {
-          List<Class<?>> implementations = interfaceToImplementationsMap.get(dependency);
-          if (implementations == null || implementations.isEmpty()) {
-            throw new NoImplementationFoundException("No implementation found for: " + dependency);
+          List<Class<?>> impls = interfaceToImplementationsMap.get(dependency);
+          if (impls == null || impls.isEmpty()) {
+            throw new NoImplementationFoundException("No implementation found for: " + dependency.getName());
           }
-
-          for (Class<?> impl : implementations) {
-            checkDependencies(impl, sorted, visited, visiting);
+          for (Class<?> impl : impls) {
+            visit(impl, sorted, visited, visiting);
           }
         } else {
-          checkDependencies(dependency, sorted, visited, visiting);
+          visit(dependency, sorted, visited, visiting);
         }
       }
     }
-    visiting.remove(node);
-    visited.add(node);
-    sorted.add(node);
+
+    visiting.remove(clazz);
+    visited.add(clazz);
+    sorted.add(clazz);
   }
 }
