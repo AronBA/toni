@@ -2,6 +2,7 @@ package dev.aronba.toni.context;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Parameter;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,13 +108,16 @@ public class BasicApplicationContext implements ApplicationContext {
     logger.info("successfully created {} instances", instances.size());
   }
 
-  private Object findInterfaceImplementation(Class<?> param)
+  private Object findInterfaceImplementation(Parameter param)
       throws NoImplementationFoundException, UnsatisfiedDependencyException {
-    List<Class<?>> possibleImplementations = interfaceToImplementationsMap.get(param);
+    Class<?> paramType = param.getType();
+    List<Class<?>> possibleImplementations = interfaceToImplementationsMap.get(paramType);
     if (possibleImplementations == null || possibleImplementations.isEmpty()) {
       throw new NoImplementationFoundException("No implementation found for: " + param.getName());
     }
-    Class<?> firstCandidate = possibleImplementations.getFirst(); // Use the first implementation
+
+    Class<?> firstCandidate = takeImplementation(param, possibleImplementations);
+
     Object dependency = get(firstCandidate);
     if (dependency == null) {
       throw new UnsatisfiedDependencyException(
@@ -122,11 +126,28 @@ public class BasicApplicationContext implements ApplicationContext {
     return dependency;
   }
 
+  private Class<?> takeImplementation(Parameter param, List<Class<?>> possibleImplementations) {
+    if (param.isAnnotationPresent(Use.class)) {
+      for (Class<?> impl : possibleImplementations) {
+        if (impl.getSimpleName().equals(param.getAnnotation(Use.class).implementationName())) {
+          return impl;
+        }
+      }
+      logger.warn(
+          "No implementation was found with the name: {}",
+          param.getAnnotation(Use.class).implementationName());
+    }
+    return possibleImplementations.getFirst();
+  }
+
   private List<Object> instantiatedDependencies(Constructor<?> constructor)
       throws NoImplementationFoundException, UnsatisfiedDependencyException {
     List<Object> args = new ArrayList<>();
-    for (Class<?> param : constructor.getParameterTypes()) {
-      Object dependency = param.isInterface() ? findInterfaceImplementation(param) : get(param);
+    for (Parameter param : constructor.getParameters()) {
+      Class<?> parameterType = param.getType();
+
+      Object dependency =
+          parameterType.isInterface() ? findInterfaceImplementation(param) : get(parameterType);
 
       if (dependency == null) {
         throw new UnsatisfiedDependencyException(

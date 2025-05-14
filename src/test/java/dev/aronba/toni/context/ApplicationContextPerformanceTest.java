@@ -1,14 +1,13 @@
 package dev.aronba.toni.context;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import dev.aronba.toni.context.testClasses.perfomance.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-public class ApplicationContextPerformanceTest {
+class ApplicationContextPerformanceTest {
 
   static Stream<ApplicationContext> provideImplementations() {
     return Stream.of(new BasicApplicationContext());
