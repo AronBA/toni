@@ -1,13 +1,12 @@
 package dev.aronba.toni.context;
 
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import dev.aronba.toni.context.testClasses.*;
+import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class ApplicationContexTest {
 
@@ -164,5 +163,15 @@ class ApplicationContexTest {
     void shouldThrowIfNoImplementationForDependencyExists(ApplicationContext applicationContext) {
         assertThrows(NoImplementationFoundException.class, () -> applicationContext.register(ServiceInterface.class, InterfaceDependentComponent.class));
     }
+
+    @ParameterizedTest
+    @MethodSource("provideImplementations")
+    void idkMightBeCooked(ApplicationContext applicationContext) {
+        assertDoesNotThrow( () -> applicationContext.register(ServiceInterface.class, InterfaceDependentComponent.class, ServiceInterfaceWithDependenciesImpl.class, EmptyComponent.class));
+        InterfaceDependentComponent interfaceDependentComponent = applicationContext.get(InterfaceDependentComponent.class);
+        interfaceDependentComponent.run();
+        assertEquals(20, interfaceDependentComponent.check);
+    }
+
 
 }

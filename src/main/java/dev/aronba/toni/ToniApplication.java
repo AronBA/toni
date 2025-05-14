@@ -1,14 +1,12 @@
 package dev.aronba.toni;
 
 import dev.aronba.toni.context.ApplicationContext;
-import dev.aronba.toni.context.CircularDependencyException;
 import dev.aronba.toni.context.ContextScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ToniApplication {
   private static final Logger logger = LoggerFactory.getLogger(ToniApplication.class);
-  private final ContextScanner contextScanner;
   private static final String BANNER =
       """
                 \s
@@ -22,6 +20,7 @@ public class ToniApplication {
                      /\\______\\                        /\\______\\    \s
                      \\/______/                        \\/______/    \s
             """;
+  private final ContextScanner contextScanner;
 
   public ToniApplication(final ContextScanner contextScanner) {
     this.contextScanner = contextScanner;

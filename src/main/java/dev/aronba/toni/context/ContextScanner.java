@@ -1,7 +1,6 @@
 package dev.aronba.toni.context;
 
 import io.github.classgraph.ClassGraph;
-import io.github.classgraph.ClassInfo;
 import io.github.classgraph.ClassInfoList;
 import io.github.classgraph.ScanResult;
 import org.slf4j.Logger;

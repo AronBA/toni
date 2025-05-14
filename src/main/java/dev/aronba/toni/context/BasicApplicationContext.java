@@ -158,12 +158,7 @@ public class BasicApplicationContext implements ApplicationContext {
           NoImplementationFoundException,
           InstatitationException {
     if (instances.containsKey(clazz)) return;
-    if (clazz.isInterface()) {
-      for (Class<?> possibleImplementations : interfaceToImplementationsMap.get(clazz)) {
-        createInstance(possibleImplementations);
-      }
-      return;
-    }
+    if (clazz.isInterface()) return;
     Constructor<?>[] constructors = clazz.getConstructors();
     for (int i = 0; i < constructors.length; i++) {
       try {
@@ -191,7 +186,8 @@ public class BasicApplicationContext implements ApplicationContext {
     }
   }
 
-  private List<Class<?>> sortGraph() throws CircularDependencyException {
+  private List<Class<?>> sortGraph()
+      throws CircularDependencyException, NoImplementationFoundException {
     List<Class<?>> sorted = new ArrayList<>();
     Set<Class<?>> visited = new HashSet<>();
     Set<Class<?>> visiting = new HashSet<>();
@@ -203,7 +199,7 @@ public class BasicApplicationContext implements ApplicationContext {
 
   private void checkDependencies(
       Class<?> node, List<Class<?>> sorted, Set<Class<?>> visited, Set<Class<?>> visiting)
-      throws CircularDependencyException {
+      throws CircularDependencyException, NoImplementationFoundException {
     if (visited.contains(node)) return; // if dependency got already checked -> return
     if (visiting.contains(node))
       throw new CircularDependencyException(); // if dependency is depending on its own -> throw
@@ -217,7 +213,18 @@ public class BasicApplicationContext implements ApplicationContext {
             List.of())) { // base case for recursion -> if no dependencies exists, loop won't get
       // executed
       for (Class<?> dependency : constructors) {
-        checkDependencies(dependency, sorted, visited, visiting);
+        if (dependency.isInterface()) {
+          List<Class<?>> implementations = interfaceToImplementationsMap.get(dependency);
+          if (implementations == null || implementations.isEmpty()) {
+            throw new NoImplementationFoundException("No implementation found for: " + dependency);
+          }
+
+          for (Class<?> impl : implementations) {
+            checkDependencies(impl, sorted, visited, visiting);
+          }
+        } else {
+          checkDependencies(dependency, sorted, visited, visiting);
+        }
       }
     }
     visiting.remove(node);

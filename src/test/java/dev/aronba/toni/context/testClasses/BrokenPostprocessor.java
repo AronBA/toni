@@ -5,8 +5,7 @@ import dev.aronba.toni.context.ComponentPostProcessor;
 import dev.aronba.toni.context.PostProcessingException;
 
 public class BrokenPostprocessor implements ComponentPostProcessor {
-    @Override
-    public void postProcess(Class<?> type, Object instance, ApplicationContext applicationContext) throws PostProcessingException {
-
-    }
+  @Override
+  public void postProcess(Class<?> type, Object instance, ApplicationContext applicationContext)
+      throws PostProcessingException {}
 }

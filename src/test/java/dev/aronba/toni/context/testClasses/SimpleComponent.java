@@ -4,13 +4,13 @@ import dev.aronba.toni.context.Component;
 
 @Component
 public class SimpleComponent {
-    private final EmptyComponent emptyComponent;
+  private final EmptyComponent emptyComponent;
 
-    public SimpleComponent(EmptyComponent emptyComponent) {
-        this.emptyComponent = emptyComponent;
-    }
+  public SimpleComponent(EmptyComponent emptyComponent) {
+    this.emptyComponent = emptyComponent;
+  }
 
-    public EmptyComponent getEmptyComponent() {
-        return emptyComponent;
-    }
+  public EmptyComponent getEmptyComponent() {
+    return emptyComponent;
+  }
 }

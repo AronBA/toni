@@ -10,30 +10,30 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class ApplicationContextPerformanceTest {
 
-    static Stream<ApplicationContext> provideImplementations() {
-        return Stream.of(new BasicApplicationContext());
+  static Stream<ApplicationContext> provideImplementations() {
+    return Stream.of(new BasicApplicationContext());
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldTimeThePerformance(ApplicationContext applicationContext) {
+    Class<?>[] components = {
+      A.class, B.class, C.class, D.class, E.class, F.class, G.class, Q.class, R.class
+    };
+
+    long startTime = System.nanoTime();
+    try {
+      applicationContext.register(components);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to register components", e);
     }
+    long endTime = System.nanoTime();
 
-    @ParameterizedTest
-    @MethodSource("provideImplementations")
-    void shouldTimeThePerformance(ApplicationContext applicationContext) {
-        Class<?>[] components = {
-                A.class, B.class, C.class, D.class, E.class, F.class, G.class, Q.class, R.class
-        };
+    long elapsedTime = (endTime - startTime) / 1_000_000;
 
-        long startTime = System.nanoTime();
-        try {
-            applicationContext.register(components);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to register components", e);
-        }
-        long endTime = System.nanoTime();
+    System.out.println("Time taken to build context: " + elapsedTime + " ms");
 
-        long elapsedTime = (endTime - startTime) / 1_000_000;
-
-        System.out.println("Time taken to build context: " + elapsedTime + " ms");
-
-        G lastComponent = applicationContext.get(G.class);
-        assertNotNull(lastComponent);
-    }
+    G lastComponent = applicationContext.get(G.class);
+    assertNotNull(lastComponent);
+  }
 }
