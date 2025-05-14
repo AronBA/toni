@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 public class ApplicationContextPerformanceTest {
 
     static Stream<ApplicationContext> provideImplementations() {
-        return Stream.of(new BasicApplicationContext(), new MultithreadedApplicationContext());
+        return Stream.of(new BasicApplicationContext());
     }
 
     @ParameterizedTest

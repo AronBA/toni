@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory;
 public class ContextScanner {
   private static final Logger logger = LoggerFactory.getLogger(ContextScanner.class);
 
-  public ApplicationContext scan() throws CircularDependencyException {
+  public ApplicationContext scan() throws Exception {
     try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("").scan()) {
       ClassInfoList componentList =
           scanResult.getClassesWithAnnotation("dev.aronba.toni.context.Component");

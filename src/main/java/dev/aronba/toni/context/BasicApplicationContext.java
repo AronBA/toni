@@ -1,6 +1,7 @@
 package dev.aronba.toni.context;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,15 +11,20 @@ public class BasicApplicationContext implements ApplicationContext {
   private final Map<Class<?>, Object> instances;
   private final Map<Class<?>, List<List<Class<?>>>> dependencyGraph;
   private final List<ComponentPostProcessor> componentPostProcessors;
+  private final Map<Class<?>, List<Class<?>>> interfaceToImplementationsMap;
 
   public BasicApplicationContext() {
     instances = new HashMap<>();
     dependencyGraph = new HashMap<>();
+    interfaceToImplementationsMap = new HashMap<>();
     componentPostProcessors = new ArrayList<>();
   }
 
   @Override
-  public void register(Class<?>... classes) throws CircularDependencyException {
+  public void register(Class<?>... classes)
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     buildDependencyGraph(classes);
     instantiateComponents();
     runPostProcessors();
@@ -27,8 +33,18 @@ public class BasicApplicationContext implements ApplicationContext {
   private void buildDependencyGraph(Class<?>... classes) {
 
     for (Class<?> clazz : classes) {
-      Constructor<?>[] constructorCandidates = clazz.getConstructors();
+      if (clazz.isInterface()) {
+        interfaceToImplementationsMap.put(clazz, new ArrayList<>());
+        dependencyGraph.put(clazz, List.of());
+        continue;
+      }
+      for (Class<?> iface : clazz.getInterfaces()) {
+        if (interfaceToImplementationsMap.containsKey(iface)) {
+          interfaceToImplementationsMap.get(iface).add(clazz);
+        }
+      }
 
+      Constructor<?>[] constructorCandidates = clazz.getConstructors();
       List<List<Class<?>>> constructors = findValidConstructors(constructorCandidates);
 
       if (constructors.isEmpty()) {
@@ -80,40 +96,92 @@ public class BasicApplicationContext implements ApplicationContext {
     return clazz.cast(instances.get(clazz));
   }
 
-  private void instantiateComponents() throws CircularDependencyException {
+  private void instantiateComponents()
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     List<Class<?>> sortedClasses = sortGraph();
-
     for (Class<?> clazz : sortedClasses) {
       createInstance(clazz);
     }
-
     logger.info("successfully created {} instances", instances.size());
   }
 
-  private void createInstance(Class<?> clazz) {
+  private Object findInterfaceImplementation(Class<?> param)
+      throws NoImplementationFoundException, UnsatisfiedDependencyException {
+    List<Class<?>> possibleImplementations = interfaceToImplementationsMap.get(param);
+    if (possibleImplementations == null || possibleImplementations.isEmpty()) {
+      throw new NoImplementationFoundException("No implementation found for: " + param.getName());
+    }
+    Class<?> firstCandidate = possibleImplementations.getFirst(); // Use the first implementation
+    Object dependency = get(firstCandidate);
+    if (dependency == null) {
+      throw new UnsatisfiedDependencyException(
+          "Instance of dependency is null for: " + param.getName());
+    }
+    return dependency;
+  }
+
+  private List<Object> instantiatedDependencies(Constructor<?> constructor)
+      throws NoImplementationFoundException, UnsatisfiedDependencyException {
+    List<Object> args = new ArrayList<>();
+    for (Class<?> param : constructor.getParameterTypes()) {
+      Object dependency = param.isInterface() ? findInterfaceImplementation(param) : get(param);
+
+      if (dependency == null) {
+        throw new UnsatisfiedDependencyException(
+            "Instance of dependency is null for: " + param.getName());
+      }
+      args.add(dependency);
+    }
+
+    return args;
+  }
+
+  private void instantiateConstructor(Class<?> clazz, Constructor<?> constructor)
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
+    try {
+      List<Object> args = instantiatedDependencies(constructor);
+      Object instance = constructor.newInstance(args.toArray());
+      instances.put(clazz, instance);
+      addPostProcessor(clazz, instance);
+      logger.debug("Created instance of: {}", clazz.getName());
+    } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
+      throw new InstatitationException(e);
+    }
+  }
+
+  private void createInstance(Class<?> clazz)
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     if (instances.containsKey(clazz)) return;
+    if (clazz.isInterface()) {
+      for (Class<?> possibleImplementations : interfaceToImplementationsMap.get(clazz)) {
+        createInstance(possibleImplementations);
+      }
+      return;
+    }
     Constructor<?>[] constructors = clazz.getConstructors();
-    for (Constructor<?> constructor : constructors) {
+    for (int i = 0; i < constructors.length; i++) {
       try {
-        List<Object> args = new ArrayList<>();
-        for (Class<?> param : constructor.getParameterTypes()) {
-          Object dependency = get(param);
-          if (dependency == null) throw new NullPointerException("Instance of dependency is null");
-          args.add(dependency);
-        }
-        Object instance = constructor.newInstance(args.toArray());
-        instances.put(clazz, instance);
-        addPostProcessor(clazz, instance);
-        logger.debug("created instance of: {}", clazz.getName());
-        return;
-      } catch (Exception e) {
+        instantiateConstructor(clazz, constructors[i]);
+        break;
+      } catch (UnsatisfiedDependencyException
+          | NoImplementationFoundException
+          | InstatitationException e) {
         logger.warn(
-            "failed to create instance of {}, will try another constructor: {}",
-            clazz.getName(),
-            e.getMessage());
+            "Failed instantiating constructor: {} remaining constructors to try: {}",
+            constructors[i].getName(),
+            constructors.length - 1);
+        if (i == constructors.length - 1) {
+          logger.error("Failed constructing instance of {}", clazz.getName());
+          throw e;
+        }
       }
     }
-    logger.error("failed constructing instance of {} ", clazz.getName());
   }
 
   private void addPostProcessor(Class<?> clazz, Object instance) {

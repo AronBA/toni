@@ -9,7 +9,7 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ApplicationContextTest {
+class ApplicationContexTest {
 
     static Stream<ApplicationContext> provideImplementations(){
     return Stream.of(new BasicApplicationContext());
@@ -152,9 +152,17 @@ class ApplicationContextTest {
 
     @ParameterizedTest
     @MethodSource("provideImplementations")
-    void shouldTryToFindImplementationOfInterfaceWhenDependingOnInterface(ApplicationContext applicationContext){
-        //T0DO
-        assertTrue(true);
+    void shouldTryToFindImplementationOfInterfaceWhenDependingOnInterface(ApplicationContext applicationContext) {
+        assertDoesNotThrow(() -> applicationContext.register(ServiceInterface.class, ServiceInterfaceImpl.class, InterfaceDependentComponent.class));
+        InterfaceDependentComponent interfaceDependentComponent = applicationContext.get(InterfaceDependentComponent.class);
+        interfaceDependentComponent.run();
+        assertEquals(10,interfaceDependentComponent.check);
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideImplementations")
+    void shouldThrowIfNoImplementationForDependencyExists(ApplicationContext applicationContext) {
+        assertThrows(NoImplementationFoundException.class, () -> applicationContext.register(ServiceInterface.class, InterfaceDependentComponent.class));
     }
 
 }

@@ -27,7 +27,7 @@ public class ToniApplication {
     this.contextScanner = contextScanner;
   }
 
-  public static void run(final String[] args) {
+  public static void run(final String[] args) throws Exception {
     logger.info(BANNER);
     logger.info("Starting ToniApplication");
     final ContextScanner contextScanner = new ContextScanner();
@@ -35,7 +35,7 @@ public class ToniApplication {
     toniApplication.start();
   }
 
-  private void start() throws CircularDependencyException {
+  private void start() throws Exception {
     logger.info("Scanning Classpath");
     final ApplicationContext applicationContext = this.contextScanner.scan();
   }

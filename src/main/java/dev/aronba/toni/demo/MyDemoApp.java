@@ -15,7 +15,7 @@ public class MyDemoApp {
     this.databaseService = databaseService;
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws Exception {
     ToniApplication.run(args);
   }
 }
