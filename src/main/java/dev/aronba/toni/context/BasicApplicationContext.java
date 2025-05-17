@@ -1,8 +1,6 @@
 package dev.aronba.toni.context;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.*;
 import java.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,8 +14,35 @@ public class BasicApplicationContext implements ApplicationContext {
   private final Map<Class<?>, List<Class<?>>> interfaceToImplementationsMap = new HashMap<>();
 
   @Override
+  public <T> T get(Class<T> clazz) {
+    if (!clazz.isAnnotationPresent(Component.class)) return null;
+    Lifetime classLifetime = clazz.getAnnotation(Component.class).value();
+
+    Object instance = null;
+    if (Objects.requireNonNull(classLifetime) == Lifetime.SINGELTON) {
+      instance = clazz.cast(instances.get(clazz));
+    } else if (classLifetime == Lifetime.PROTOTYPE && instances.containsKey(clazz)) {
+      instance = clazz.cast(createNewInstance(clazz));
+    }
+    if (instance == null) return null;
+    return clazz.cast(instance);
+  }
+
+  private Object createNewInstance(Class<?> clazz) {
+    try {
+      return clazz.cast(instantiateClass(clazz));
+    } catch (InstatitationException
+        | NoImplementationFoundException
+        | UnsatisfiedDependencyException e) {
+      return null;
+    }
+  }
+
+  @Override
   public void register(Class<?>... classes)
-          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     buildDependencyGraph(classes);
     instantiateComponents();
     runPostProcessors();
@@ -32,7 +57,7 @@ public class BasicApplicationContext implements ApplicationContext {
       }
 
       for (Class<?> iface : clazz.getInterfaces()) {
-        interfaceToImplementationsMap.computeIfAbsent(iface, k -> new ArrayList<>()).add(clazz);
+        interfaceToImplementationsMap.computeIfAbsent(iface, _ -> new ArrayList<>()).add(clazz);
       }
 
       List<List<Class<?>>> validConstructors = findValidConstructors(clazz.getConstructors());
@@ -42,7 +67,8 @@ public class BasicApplicationContext implements ApplicationContext {
       }
 
       validConstructors.sort(Comparator.comparingInt(List::size));
-      logger.debug("Found {} valid constructors for class: {}", validConstructors.size(), clazz.getName());
+      logger.debug(
+          "Found {} valid constructors for class: {}", validConstructors.size(), clazz.getName());
       dependencyGraph.put(clazz, validConstructors);
     }
   }
@@ -68,7 +94,9 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   private void instantiateComponents()
-          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     for (Class<?> clazz : sortDependencyGraph()) {
       if (!clazz.isInterface() && !instances.containsKey(clazz)) {
         instantiateClass(clazz);
@@ -77,42 +105,68 @@ public class BasicApplicationContext implements ApplicationContext {
     logger.info("Successfully created {} instances", instances.size());
   }
 
-  private void instantiateClass(Class<?> clazz)
-          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+  private Object instantiateClass(Class<?> clazz)
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     for (Constructor<?> constructor : clazz.getConstructors()) {
       try {
-        createInstanceFromConstructor(clazz, constructor);
-        return;
+        return createInstanceFromConstructor(clazz, constructor);
       } catch (Exception e) {
-        logger.warn("Constructor failed: {} ({} left)", constructor.getName(), clazz.getConstructors().length - 1);
+        logger.warn(
+            "Constructor failed: {} ({} left)",
+            constructor.getName(),
+            clazz.getConstructors().length - 1);
         if (constructor == clazz.getConstructors()[clazz.getConstructors().length - 1]) {
           logger.error("All constructors failed for class: {}", clazz.getName());
           throw e;
         }
       }
     }
+    logger.warn("something went bad");
+    return null;
   }
 
-  private void createInstanceFromConstructor(Class<?> clazz, Constructor<?> constructor)
-          throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException {
+  private Object createInstanceFromConstructor(Class<?> clazz, Constructor<?> constructor)
+      throws UnsatisfiedDependencyException,
+          NoImplementationFoundException,
+          InstatitationException {
     try {
       List<Object> args = getInstantiatedDependencies(constructor);
       Object instance = constructor.newInstance(args.toArray());
       instances.put(clazz, instance);
       registerPostProcessorIfApplicable(clazz, instance);
       logger.debug("Created instance of {}", clazz.getName());
+      return instance;
     } catch (InvocationTargetException | IllegalAccessException | InstantiationException e) {
       throw new InstatitationException(e);
     }
   }
 
   private List<Object> getInstantiatedDependencies(Constructor<?> constructor)
-          throws NoImplementationFoundException, UnsatisfiedDependencyException {
+      throws NoImplementationFoundException, UnsatisfiedDependencyException {
     List<Object> dependencies = new ArrayList<>();
     for (Parameter parameter : constructor.getParameters()) {
-      Object dependency = parameter.getType().isInterface()
-              ? resolveInterfaceDependency(parameter)
-              : get(parameter.getType());
+      Object dependency = null;
+
+      if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {
+        if (parameterizedType.getRawType() == Optional.class){
+
+        Type[] genericInterfaces = parameter.getType().getGenericInterfaces();
+        Type type = genericInterfaces[0];
+
+        Object ob =
+            type.getClass().isInterface()
+                ? resolveInterfaceDependency(parameter)
+                : get(type.getClass());
+        dependency = Optional.ofNullable(ob);
+        }
+      } else {
+        dependency =
+            parameter.getType().isInterface()
+                ? resolveInterfaceDependency(parameter)
+                : get(parameter.getType());
+      }
 
       if (dependency == null) {
         throw new UnsatisfiedDependencyException("Missing dependency: " + parameter.getName());
@@ -124,10 +178,11 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   private Object resolveInterfaceDependency(Parameter parameter)
-          throws NoImplementationFoundException, UnsatisfiedDependencyException {
+      throws NoImplementationFoundException, UnsatisfiedDependencyException {
     List<Class<?>> implementations = interfaceToImplementationsMap.get(parameter.getType());
     if (implementations == null || implementations.isEmpty()) {
-      throw new NoImplementationFoundException("No implementation found for: " + parameter.getType().getName());
+      throw new NoImplementationFoundException(
+          "No implementation found for: " + parameter.getType().getName());
     }
 
     Class<?> selected = selectImplementation(parameter, implementations);
@@ -154,7 +209,8 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   private void registerPostProcessorIfApplicable(Class<?> clazz, Object instance) {
-    if (clazz.isAnnotationPresent(PostProcessor.class) && instance instanceof ComponentPostProcessor processor) {
+    if (clazz.isAnnotationPresent(PostProcessor.class)
+        && instance instanceof ComponentPostProcessor processor) {
       componentPostProcessors.add(processor);
     }
   }
@@ -167,13 +223,8 @@ public class BasicApplicationContext implements ApplicationContext {
     }
   }
 
-  @Override
-  public <T> T get(Class<T> clazz) {
-    return clazz.cast(instances.get(clazz));
-  }
-
   private List<Class<?>> sortDependencyGraph()
-          throws CircularDependencyException, NoImplementationFoundException {
+      throws CircularDependencyException, NoImplementationFoundException {
     List<Class<?>> sorted = new ArrayList<>();
     Set<Class<?>> visited = new HashSet<>();
     Set<Class<?>> visiting = new HashSet<>();
@@ -185,11 +236,8 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   private void visit(
-          Class<?> clazz,
-          List<Class<?>> sorted,
-          Set<Class<?>> visited,
-          Set<Class<?>> visiting)
-          throws CircularDependencyException, NoImplementationFoundException {
+      Class<?> clazz, List<Class<?>> sorted, Set<Class<?>> visited, Set<Class<?>> visiting)
+      throws CircularDependencyException, NoImplementationFoundException {
 
     if (visited.contains(clazz)) return;
     if (visiting.contains(clazz)) throw new CircularDependencyException();
@@ -201,7 +249,8 @@ public class BasicApplicationContext implements ApplicationContext {
         if (dependency.isInterface()) {
           List<Class<?>> impls = interfaceToImplementationsMap.get(dependency);
           if (impls == null || impls.isEmpty()) {
-            throw new NoImplementationFoundException("No implementation found for: " + dependency.getName());
+            throw new NoImplementationFoundException(
+                "No implementation found for: " + dependency.getName());
           }
           for (Class<?> impl : impls) {
             visit(impl, sorted, visited, visiting);

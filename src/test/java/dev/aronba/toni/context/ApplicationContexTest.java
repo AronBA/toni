@@ -226,4 +226,52 @@ class ApplicationContexTest {
     interfaceDependentComponentWithUse.run();
     assertEquals(20, interfaceDependentComponentWithUse.check);
   }
+
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldCreateNewInstanceWhenPrototype(ApplicationContext applicationContext) {
+    assertDoesNotThrow(() -> applicationContext.register(PrototypeComponent.class));
+
+    PrototypeComponent prototypeComponent = applicationContext.get(PrototypeComponent.class);
+
+    PrototypeComponent prototypeComponent2 = applicationContext.get(PrototypeComponent.class);
+
+    assertNotNull(prototypeComponent);
+    assertNotNull(prototypeComponent2);
+    assertNotEquals(prototypeComponent, prototypeComponent2);
+    assertNotEquals(prototypeComponent.id, prototypeComponent2.id);
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldInstantiateConstructorsWithNoParams(ApplicationContext applicationContext) {
+    assertDoesNotThrow(() -> applicationContext.register(EmptyConstructorComponent.class));
+
+    EmptyConstructorComponent emptyConstructorComponent =
+        applicationContext.get(EmptyConstructorComponent.class);
+    assertNotNull(emptyConstructorComponent);
+  }
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldResolveOptionalDependencies(ApplicationContext applicationContext) {
+    assertDoesNotThrow(() -> applicationContext.register(OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
+    OptionalDependenciesComponent optionalDependenciesComponent = applicationContext.get(OptionalDependenciesComponent.class);
+    assertNotNull(optionalDependenciesComponent);
+    assertNotNull(optionalDependenciesComponent.simpleComponent);
+    assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
+  }
+
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldResolveOptionalDependenciesIfMissing(ApplicationContext applicationContext) {
+    assertDoesNotThrow(() -> applicationContext.register(OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
+    OptionalDependenciesComponent optionalDependenciesComponent = applicationContext.get(OptionalDependenciesComponent.class);
+    assertNotNull(optionalDependenciesComponent);
+    assertNotNull(optionalDependenciesComponent.simpleComponent);
+    assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
+  }
+  @ParameterizedTest
+  @MethodSource("provideImplementations")
+  void shouldResolveOptionalInterfaceDependencies(ApplicationContext applicationContext) {
+  }
 }

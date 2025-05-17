@@ -1,5 +1,8 @@
 package dev.aronba.toni.context.testClasses;
 
+import dev.aronba.toni.context.Component;
+
+@Component
 public class ServiceInterfaceWithDependenciesImpl implements ServiceInterface {
 
   private final EmptyComponent emptyComponent;
