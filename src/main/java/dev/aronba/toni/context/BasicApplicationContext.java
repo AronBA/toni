@@ -77,14 +77,26 @@ public class BasicApplicationContext implements ApplicationContext {
     List<List<Class<?>>> valid = new ArrayList<>();
     for (Constructor<?> constructor : constructors) {
       if (isConstructorValid(constructor)) {
-        valid.add(List.of(constructor.getParameterTypes()));
+        addParameters(valid, constructor);
       }
     }
     return valid;
   }
 
+  private void addParameters(List<List<Class<?>>> valid, Constructor constructor) {
+    valid.add(List.of(constructor.getParameterTypes()));
+  }
+
   private boolean isConstructorValid(Constructor<?> constructor) {
-    for (Class<?> param : constructor.getParameterTypes()) {
+    for (int i = 0; i < constructor.getParameters().length; i++) {
+      Class<?> param = constructor.getParameterTypes()[i];
+      if (param.equals(Optional.class)) {
+        Type genericType = constructor.getGenericParameterTypes()[i];
+        if (genericType instanceof ParameterizedType parameterizedType) {
+          Class<?> type = (Class<?>) parameterizedType.getActualTypeArguments()[0];
+          return type.isAnnotationPresent(Component.class);
+        }
+      }
       if (!param.isAnnotationPresent(Component.class)) {
         logger.warn("Constructor with invalid parameters found: {}", constructor);
         return false;
@@ -147,10 +159,9 @@ public class BasicApplicationContext implements ApplicationContext {
       throws NoImplementationFoundException, UnsatisfiedDependencyException {
     List<Object> dependencies = new ArrayList<>();
     for (Parameter parameter : constructor.getParameters()) {
-      Object dependency = null;
+      Object dependency;
 
-      if (parameter.getParameterizedType() instanceof ParameterizedType parameterizedType) {
-        if (parameterizedType.getRawType() == Optional.class){
+      if (parameter.getType().equals(Optional.class)) {
 
         Type[] genericInterfaces = parameter.getType().getGenericInterfaces();
         Type type = genericInterfaces[0];
@@ -160,7 +171,7 @@ public class BasicApplicationContext implements ApplicationContext {
                 ? resolveInterfaceDependency(parameter)
                 : get(type.getClass());
         dependency = Optional.ofNullable(ob);
-        }
+        // todo -> I dunno if this shit works check later
       } else {
         dependency =
             parameter.getType().isInterface()
@@ -247,14 +258,9 @@ public class BasicApplicationContext implements ApplicationContext {
     for (List<Class<?>> constructorDeps : dependencyGraph.getOrDefault(clazz, List.of())) {
       for (Class<?> dependency : constructorDeps) {
         if (dependency.isInterface()) {
-          List<Class<?>> impls = interfaceToImplementationsMap.get(dependency);
-          if (impls == null || impls.isEmpty()) {
-            throw new NoImplementationFoundException(
-                "No implementation found for: " + dependency.getName());
-          }
-          for (Class<?> impl : impls) {
-            visit(impl, sorted, visited, visiting);
-          }
+          handleInterface(dependency, sorted, visited, visiting);
+        } else if (dependency.equals(Optional.class)) {
+          handleOptionals(dependency, sorted, visited, visiting);
         } else {
           visit(dependency, sorted, visited, visiting);
         }
@@ -264,5 +270,25 @@ public class BasicApplicationContext implements ApplicationContext {
     visiting.remove(clazz);
     visited.add(clazz);
     sorted.add(clazz);
+  }
+
+  private void handleOptionals(
+      Class<?> dependency, List<Class<?>> sorted, Set<Class<?>> visited, Set<Class<?>> visiting)
+      throws NoImplementationFoundException {
+    visit(dependency, sorted, visited, visiting);
+    // todo -> handle optionals, get Realtype instead of RawType
+  }
+
+  private void handleInterface(
+      Class<?> dependency, List<Class<?>> sorted, Set<Class<?>> visited, Set<Class<?>> visiting)
+      throws NoImplementationFoundException {
+    List<Class<?>> impls = interfaceToImplementationsMap.get(dependency);
+    if (impls == null || impls.isEmpty()) {
+      throw new NoImplementationFoundException(
+          "No implementation found for: " + dependency.getName());
+    }
+    for (Class<?> impl : impls) {
+      visit(impl, sorted, visited, visiting);
+    }
   }
 }
