@@ -1,7 +1,7 @@
 package dev.aronba.toni.context.testClasses;
 
-import dev.aronba.toni.context.Component;
-import dev.aronba.toni.context.PostConstruct;
+import dev.aronba.toni.context.annotation.Component;
+import dev.aronba.toni.context.annotation.PostConstruct;
 
 @Component
 public class ComplexComponent {

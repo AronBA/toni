@@ -1,4 +1,4 @@
-package dev.aronba.toni.context;
+package dev.aronba.toni.context.exception;
 
 public class CircularDependencyException extends RuntimeException {
   public CircularDependencyException() {

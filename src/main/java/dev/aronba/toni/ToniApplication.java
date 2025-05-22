@@ -1,7 +1,7 @@
 package dev.aronba.toni;
 
-import dev.aronba.toni.context.ApplicationContext;
-import dev.aronba.toni.context.ContextScanner;
+import dev.aronba.toni.context.core.ApplicationContext;
+import dev.aronba.toni.context.core.ContextScanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

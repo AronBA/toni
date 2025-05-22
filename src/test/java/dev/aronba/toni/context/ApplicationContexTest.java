@@ -2,6 +2,11 @@ package dev.aronba.toni.context;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import dev.aronba.toni.context.core.ApplicationContext;
+import dev.aronba.toni.context.core.BasicApplicationContext;
+import dev.aronba.toni.context.exception.CircularDependencyException;
+import dev.aronba.toni.context.exception.NoImplementationFoundException;
+import dev.aronba.toni.context.processor.PostConstructPostProcessor;
 import dev.aronba.toni.context.testClasses.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -251,11 +256,16 @@ class ApplicationContexTest {
         applicationContext.get(EmptyConstructorComponent.class);
     assertNotNull(emptyConstructorComponent);
   }
+
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldResolveOptionalDependencies(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
-    OptionalDependenciesComponent optionalDependenciesComponent = applicationContext.get(OptionalDependenciesComponent.class);
+    assertDoesNotThrow(
+        () ->
+            applicationContext.register(
+                OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
+    OptionalDependenciesComponent optionalDependenciesComponent =
+        applicationContext.get(OptionalDependenciesComponent.class);
     assertNotNull(optionalDependenciesComponent);
     assertNotNull(optionalDependenciesComponent.simpleComponent);
     assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
@@ -264,14 +274,18 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldResolveOptionalDependenciesIfMissing(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
-    OptionalDependenciesComponent optionalDependenciesComponent = applicationContext.get(OptionalDependenciesComponent.class);
+    assertDoesNotThrow(
+        () ->
+            applicationContext.register(
+                OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
+    OptionalDependenciesComponent optionalDependenciesComponent =
+        applicationContext.get(OptionalDependenciesComponent.class);
     assertNotNull(optionalDependenciesComponent);
     assertNotNull(optionalDependenciesComponent.simpleComponent);
     assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
   }
+
   @ParameterizedTest
   @MethodSource("provideImplementations")
-  void shouldResolveOptionalInterfaceDependencies(ApplicationContext applicationContext) {
-  }
+  void shouldResolveOptionalInterfaceDependencies(ApplicationContext applicationContext) {}
 }

@@ -1,12 +1,13 @@
-package dev.aronba.toni.context;
+package dev.aronba.toni.context.annotation;
 
+import dev.aronba.toni.context.core.Lifetime;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.PARAMETER)
-public @interface Use {
-  String implementationName() default "";
+@Target(ElementType.TYPE)
+public @interface Component {
+  Lifetime value() default Lifetime.SINGELTON;
 }

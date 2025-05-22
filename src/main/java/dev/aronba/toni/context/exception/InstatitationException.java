@@ -1,4 +1,4 @@
-package dev.aronba.toni.context;
+package dev.aronba.toni.context.exception;
 
 public class InstatitationException extends Exception {
   public InstatitationException(String message) {

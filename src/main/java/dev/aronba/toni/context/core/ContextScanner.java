@@ -1,4 +1,4 @@
-package dev.aronba.toni.context;
+package dev.aronba.toni.context.core;
 
 import io.github.classgraph.ClassGraph;
 import io.github.classgraph.ClassInfoList;
@@ -12,7 +12,7 @@ public class ContextScanner {
   public ApplicationContext scan() throws Exception {
     try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("").scan()) {
       ClassInfoList componentList =
-          scanResult.getClassesWithAnnotation("dev.aronba.toni.context.Component");
+          scanResult.getClassesWithAnnotation("dev.aronba.toni.context.annotation.Component");
       ApplicationContext applicationContext = new BasicApplicationContext();
       applicationContext.register(componentList.loadClasses().toArray(new Class<?>[0]));
       return applicationContext;
