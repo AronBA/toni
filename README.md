@@ -14,11 +14,12 @@ Toni is a lightweight Dependency Injection (DI) framework written in Java. It pr
 ## Missing Features
 
 The framework is still under development and lacks some advanced features, such as:
-- Scope management (e.g., prototype, request, session).
-- Circular dependency handling.
-- Lazy initialization.
-- Aspect-Oriented Programming (AOP).
-- Event handling and external configuration support.
+
+- **Improved Circular Dependency Handling**: While circular dependencies are detected, the current implementation throws exceptions instead of resolving them gracefully.
+- **Lazy Initialization**: There is no support for lazy initialization of components, where a bean is only created when it is first accessed.
+- **Aspect-Oriented Programming (AOP)**: Cross-cutting concerns like logging, security, or transaction management are not yet supported.
+- **Event Handling**: There is no mechanism for publishing and subscribing to application events.
+- **External Configuration Support**: The framework does not support external configuration (e.g., XML, YAML, or properties files) for defining beans.
 
 ## Getting Started
 
