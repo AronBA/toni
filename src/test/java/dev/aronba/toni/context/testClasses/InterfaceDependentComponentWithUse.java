@@ -1,7 +1,7 @@
 package dev.aronba.toni.context.testClasses;
 
-import dev.aronba.toni.context.Component;
-import dev.aronba.toni.context.Use;
+import dev.aronba.toni.context.annotation.Component;
+import dev.aronba.toni.context.annotation.Use;
 
 @Component
 public class InterfaceDependentComponentWithUse {

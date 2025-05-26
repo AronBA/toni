@@ -1,6 +1,10 @@
 package dev.aronba.toni.context.testClasses;
 
-import dev.aronba.toni.context.*;
+import dev.aronba.toni.context.annotation.Component;
+import dev.aronba.toni.context.annotation.PostProcessor;
+import dev.aronba.toni.context.core.ApplicationContext;
+import dev.aronba.toni.context.exception.PostProcessingException;
+import dev.aronba.toni.context.processor.ComponentPostProcessor;
 
 @Component
 @PostProcessor

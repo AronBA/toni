@@ -1,8 +1,8 @@
 package dev.aronba.toni.context.testClasses;
 
-import dev.aronba.toni.context.ApplicationContext;
-import dev.aronba.toni.context.ComponentPostProcessor;
-import dev.aronba.toni.context.PostProcessingException;
+import dev.aronba.toni.context.core.ApplicationContext;
+import dev.aronba.toni.context.exception.PostProcessingException;
+import dev.aronba.toni.context.processor.ComponentPostProcessor;
 
 public class BrokenPostprocessor implements ComponentPostProcessor {
   @Override

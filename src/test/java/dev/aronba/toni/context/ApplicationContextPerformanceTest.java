@@ -2,6 +2,8 @@ package dev.aronba.toni.context;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import dev.aronba.toni.context.core.ApplicationContext;
+import dev.aronba.toni.context.core.BasicApplicationContext;
 import dev.aronba.toni.context.testClasses.perfomance.*;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;

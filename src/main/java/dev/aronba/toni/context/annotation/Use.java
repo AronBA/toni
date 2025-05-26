@@ -1,11 +1,12 @@
-package dev.aronba.toni.context;
+package dev.aronba.toni.context.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Component
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface PostProcessor {}
+@Target(ElementType.PARAMETER)
+public @interface Use {
+  String implementationName() default "";
+}

@@ -1,8 +1,8 @@
 package dev.aronba.toni.context.testClasses;
 
-import dev.aronba.toni.context.Component;
+import dev.aronba.toni.context.annotation.Component;
 
 @Component
 public class EmptyConstructorComponent {
-    public EmptyConstructorComponent(){}
+  public EmptyConstructorComponent() {}
 }
