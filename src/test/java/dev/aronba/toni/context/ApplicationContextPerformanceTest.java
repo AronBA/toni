@@ -24,7 +24,7 @@ class ApplicationContextPerformanceTest {
 
     long startTime = System.nanoTime();
     try {
-      applicationContext.register(components);
+      applicationContext.registerComponents(components);
     } catch (Exception e) {
       throw new RuntimeException("Failed to register components", e);
     }
@@ -34,7 +34,7 @@ class ApplicationContextPerformanceTest {
 
     System.out.println("Time taken to build context: " + elapsedTime + " ms");
 
-    G lastComponent = applicationContext.get(G.class);
+    G lastComponent = applicationContext.getComponent(G.class);
     assertNotNull(lastComponent);
   }
 }

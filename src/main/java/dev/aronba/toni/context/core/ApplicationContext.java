@@ -5,8 +5,9 @@ import dev.aronba.toni.context.exception.NoImplementationFoundException;
 import dev.aronba.toni.context.exception.UnsatisfiedDependencyException;
 
 public interface ApplicationContext {
-  void register(Class<?>... classes)
+  void registerComponents(Class<?>... classes)
       throws UnsatisfiedDependencyException, NoImplementationFoundException, InstatitationException;
 
-  <T> T get(Class<T> clazz);
+  <T> T getComponent(Class<T> clazz);
+
 }

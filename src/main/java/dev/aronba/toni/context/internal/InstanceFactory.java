@@ -81,6 +81,7 @@ public class InstanceFactory {
       if (dependency == null) {
         throw new UnsatisfiedDependencyException("Could not resolve: " + type.getTypeName());
       }
+      //fixme optionals?
       resolved.add(dependency);
     }
 
@@ -94,11 +95,11 @@ public class InstanceFactory {
       if (raw.equals(Optional.class)) {
         Type inner = paramType.getActualTypeArguments()[0];
         if (inner instanceof Class<?> innerClass) {
-          Object dep = resolveNonGenericType(innerClass, parameter);
-          return Optional.ofNullable(dep);
+            Object dep = resolveNonGenericType(innerClass, parameter);
+            return Optional.ofNullable(dep);
+            //fixme ? optionals
         }
       }
-      // Handle more generic types here if needed
       return null;
     } else if (type instanceof Class<?> cls) {
       return resolveNonGenericType(cls, parameter);
@@ -112,9 +113,9 @@ public class InstanceFactory {
       List<Class<?>> impls = interfaceToImplementationsMap.getOrDefault(cls, List.of());
       if (impls.isEmpty()) throw new NoImplementationFoundException("No impl for: " + cls);
       Class<?> selected = selectImplementation(cls, impls, parameter);
-      return context.get(selected);
+      return context.getComponent(selected);
     } else {
-      return context.get(cls);
+      return context.getComponent(cls);
     }
   }
 

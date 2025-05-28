@@ -13,8 +13,11 @@ public class ContextScanner {
     try (ScanResult scanResult = new ClassGraph().enableAllInfo().acceptPackages("").scan()) {
       ClassInfoList componentList =
           scanResult.getClassesWithAnnotation("dev.aronba.toni.context.annotation.Component");
+      ClassInfoList beanConfigList = scanResult.getClassesWithAnnotation("dev.aronba.toni.context.annotation.BeanConfiguration");
+      ClassInfoList configList = scanResult.getClassesWithAnnotation("dev.aronba.toni.context.annotation.Config");
       ApplicationContext applicationContext = new BasicApplicationContext();
-      applicationContext.register(componentList.loadClasses().toArray(new Class<?>[0]));
+      applicationContext.registerComponents(componentList.loadClasses().toArray(new Class<?>[0]));
+
       return applicationContext;
     } catch (Exception e) {
       logger.error(e.getMessage());

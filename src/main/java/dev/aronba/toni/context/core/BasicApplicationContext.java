@@ -35,7 +35,7 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   @Override
-  public <T> T get(Class<T> clazz) {
+  public <T> T getComponent(Class<T> clazz) {
     if (!clazz.isAnnotationPresent(Component.class)) return null;
     Lifetime classLifetime = clazz.getAnnotation(Component.class).value();
 
@@ -50,7 +50,7 @@ public class BasicApplicationContext implements ApplicationContext {
   }
 
   @Override
-  public void register(Class<?>... classes)
+  public void registerComponents(Class<?>... classes)
       throws UnsatisfiedDependencyException,
           NoImplementationFoundException,
           InstatitationException {

@@ -21,8 +21,8 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldRegisterComponent(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(EmptyComponent.class));
-    EmptyComponent emptyComponent = applicationContext.get(EmptyComponent.class);
+    assertDoesNotThrow(() -> applicationContext.registerComponents(EmptyComponent.class));
+    EmptyComponent emptyComponent = applicationContext.getComponent(EmptyComponent.class);
     assertNotNull(emptyComponent);
   }
 
@@ -30,9 +30,9 @@ class ApplicationContexTest {
   @MethodSource("provideImplementations")
   void shouldRegisterMultipleComponents(ApplicationContext applicationContext) {
     assertDoesNotThrow(
-        () -> applicationContext.register(EmptyComponent.class, SimpleComponent.class));
-    EmptyComponent emptyComponent = applicationContext.get(EmptyComponent.class);
-    SimpleComponent simpleComponent = applicationContext.get(SimpleComponent.class);
+        () -> applicationContext.registerComponents(EmptyComponent.class, SimpleComponent.class));
+    EmptyComponent emptyComponent = applicationContext.getComponent(EmptyComponent.class);
+    SimpleComponent simpleComponent = applicationContext.getComponent(SimpleComponent.class);
     assertNotNull(emptyComponent);
     assertNotNull(simpleComponent);
   }
@@ -41,8 +41,8 @@ class ApplicationContexTest {
   @MethodSource("provideImplementations")
   void shouldRegisterComponentWithOneDependency(ApplicationContext applicationContext) {
     assertDoesNotThrow(
-        () -> applicationContext.register(EmptyComponent.class, SimpleComponent.class));
-    SimpleComponent simpleComponent = applicationContext.get(SimpleComponent.class);
+        () -> applicationContext.registerComponents(EmptyComponent.class, SimpleComponent.class));
+    SimpleComponent simpleComponent = applicationContext.getComponent(SimpleComponent.class);
     assertNotNull(simpleComponent);
     assertNotNull(simpleComponent.getEmptyComponent());
   }
@@ -52,9 +52,9 @@ class ApplicationContexTest {
   void shouldRegisterComponentWithMultipleDependencies(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 EmptyComponent.class, SimpleComponent.class, ComplexComponent.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
     assertNotNull(complexComponent);
     assertNotNull(complexComponent.getEmptyComponent());
     assertNotNull(complexComponent.getSimpleComponent());
@@ -67,9 +67,9 @@ class ApplicationContexTest {
       ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ComplexComponent.class, EmptyComponent.class, SimpleComponent.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
     assertNotNull(complexComponent);
   }
 
@@ -79,9 +79,9 @@ class ApplicationContexTest {
 
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 SimpleComponent.class, ComplexComponent.class, EmptyComponent.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
 
     assertNotNull(complexComponent.getSimpleComponent());
     assertNotNull(complexComponent);
@@ -93,8 +93,8 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldGetCorrectInstance(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(EmptyComponent.class));
-    Object component = applicationContext.get(EmptyComponent.class);
+    assertDoesNotThrow(() -> applicationContext.registerComponents(EmptyComponent.class));
+    Object component = applicationContext.getComponent(EmptyComponent.class);
     assertInstanceOf(EmptyComponent.class, component);
   }
 
@@ -103,11 +103,11 @@ class ApplicationContexTest {
   void shouldGetAlwaysTheSameSingleton(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 EmptyComponent.class, EmptyComponent.class, EmptyComponent.class));
-    EmptyComponent emptyComponent1 = applicationContext.get(EmptyComponent.class);
-    EmptyComponent emptyComponent2 = applicationContext.get(EmptyComponent.class);
-    EmptyComponent emptyComponent3 = applicationContext.get(EmptyComponent.class);
+    EmptyComponent emptyComponent1 = applicationContext.getComponent(EmptyComponent.class);
+    EmptyComponent emptyComponent2 = applicationContext.getComponent(EmptyComponent.class);
+    EmptyComponent emptyComponent3 = applicationContext.getComponent(EmptyComponent.class);
 
     assertNotNull(emptyComponent1);
     assertNotNull(emptyComponent2);
@@ -120,8 +120,8 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldGetNullIfComponentIsNotTracked(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(EmptyComponent.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    assertDoesNotThrow(() -> applicationContext.registerComponents(EmptyComponent.class));
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
     assertNull(complexComponent);
   }
 
@@ -130,12 +130,12 @@ class ApplicationContexTest {
   void shouldRunPostProcessors(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ComplexComponent.class,
                 SimpleComponent.class,
                 EmptyComponent.class,
                 SimplePostProcessor.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
     assertEquals("Hello from Postprocessor", complexComponent.getComponentName());
   }
 
@@ -144,13 +144,13 @@ class ApplicationContexTest {
   void shouldRunPostConstructProcessor(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ComplexComponent.class,
                 SimpleComponent.class,
                 EmptyComponent.class,
                 SimplePostProcessor.class,
                 PostConstructPostProcessor.class));
-    ComplexComponent complexComponent = applicationContext.get(ComplexComponent.class);
+    ComplexComponent complexComponent = applicationContext.getComponent(ComplexComponent.class);
     assertEquals("Hello from PostConstruct", complexComponent.getComponentDescription());
   }
 
@@ -159,7 +159,7 @@ class ApplicationContexTest {
   void shouldFindDirectCircularDependency(ApplicationContext applicationContext) {
     assertThrows(
         CircularDependencyException.class,
-        () -> applicationContext.register(CircularDependentComponent1.class));
+        () -> applicationContext.registerComponents(CircularDependentComponent1.class));
   }
 
   @ParameterizedTest
@@ -168,7 +168,7 @@ class ApplicationContexTest {
     assertThrows(
         CircularDependencyException.class,
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 CircularDependentComponent2.class, CircularDependentComponent3.class));
   }
 
@@ -178,12 +178,12 @@ class ApplicationContexTest {
       ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ServiceInterface.class,
                 ServiceInterfaceImpl.class,
                 InterfaceDependentComponent.class));
     InterfaceDependentComponent interfaceDependentComponent =
-        applicationContext.get(InterfaceDependentComponent.class);
+        applicationContext.getComponent(InterfaceDependentComponent.class);
     interfaceDependentComponent.run();
     assertEquals(10, interfaceDependentComponent.check);
   }
@@ -194,7 +194,7 @@ class ApplicationContexTest {
     assertThrows(
         NoImplementationFoundException.class,
         () ->
-            applicationContext.register(ServiceInterface.class, InterfaceDependentComponent.class));
+            applicationContext.registerComponents(ServiceInterface.class, InterfaceDependentComponent.class));
   }
 
   @ParameterizedTest
@@ -203,13 +203,13 @@ class ApplicationContexTest {
       ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ServiceInterface.class,
                 InterfaceDependentComponent.class,
                 ServiceInterfaceWithDependenciesImpl.class,
                 EmptyComponent.class));
     InterfaceDependentComponent interfaceDependentComponent =
-        applicationContext.get(InterfaceDependentComponent.class);
+        applicationContext.getComponent(InterfaceDependentComponent.class);
     interfaceDependentComponent.run();
     assertEquals(20, interfaceDependentComponent.check);
   }
@@ -219,7 +219,7 @@ class ApplicationContexTest {
   void shouldUseCorrectImplementation(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 ServiceInterface.class,
                 EmptyComponent.class,
                 InterfaceDependentComponentWithUse.class,
@@ -227,7 +227,7 @@ class ApplicationContexTest {
                 ServiceInterfaceWithDependenciesImpl.class));
 
     InterfaceDependentComponentWithUse interfaceDependentComponentWithUse =
-        applicationContext.get(InterfaceDependentComponentWithUse.class);
+        applicationContext.getComponent(InterfaceDependentComponentWithUse.class);
     interfaceDependentComponentWithUse.run();
     assertEquals(20, interfaceDependentComponentWithUse.check);
   }
@@ -235,11 +235,11 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldCreateNewInstanceWhenPrototype(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(PrototypeComponent.class));
+    assertDoesNotThrow(() -> applicationContext.registerComponents(PrototypeComponent.class));
 
-    PrototypeComponent prototypeComponent = applicationContext.get(PrototypeComponent.class);
+    PrototypeComponent prototypeComponent = applicationContext.getComponent(PrototypeComponent.class);
 
-    PrototypeComponent prototypeComponent2 = applicationContext.get(PrototypeComponent.class);
+    PrototypeComponent prototypeComponent2 = applicationContext.getComponent(PrototypeComponent.class);
 
     assertNotNull(prototypeComponent);
     assertNotNull(prototypeComponent2);
@@ -250,10 +250,10 @@ class ApplicationContexTest {
   @ParameterizedTest
   @MethodSource("provideImplementations")
   void shouldInstantiateConstructorsWithNoParams(ApplicationContext applicationContext) {
-    assertDoesNotThrow(() -> applicationContext.register(EmptyConstructorComponent.class));
+    assertDoesNotThrow(() -> applicationContext.registerComponents(EmptyConstructorComponent.class));
 
     EmptyConstructorComponent emptyConstructorComponent =
-        applicationContext.get(EmptyConstructorComponent.class);
+        applicationContext.getComponent(EmptyConstructorComponent.class);
     assertNotNull(emptyConstructorComponent);
   }
 
@@ -262,13 +262,14 @@ class ApplicationContexTest {
   void shouldResolveOptionalDependencies(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
+            applicationContext.registerComponents(
                 OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
     OptionalDependenciesComponent optionalDependenciesComponent =
-        applicationContext.get(OptionalDependenciesComponent.class);
+        applicationContext.getComponent(OptionalDependenciesComponent.class);
     assertNotNull(optionalDependenciesComponent);
     assertNotNull(optionalDependenciesComponent.simpleComponent);
     assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
+    assertInstanceOf(SimpleComponent.class,optionalDependenciesComponent.simpleComponent.get());
   }
 
   @ParameterizedTest
@@ -276,13 +277,13 @@ class ApplicationContexTest {
   void shouldResolveOptionalDependenciesIfMissing(ApplicationContext applicationContext) {
     assertDoesNotThrow(
         () ->
-            applicationContext.register(
-                OptionalDependenciesComponent.class, SimpleComponent.class, EmptyComponent.class));
+            applicationContext.registerComponents(
+                OptionalDependenciesComponent.class));
     OptionalDependenciesComponent optionalDependenciesComponent =
-        applicationContext.get(OptionalDependenciesComponent.class);
+        applicationContext.getComponent(OptionalDependenciesComponent.class);
     assertNotNull(optionalDependenciesComponent);
     assertNotNull(optionalDependenciesComponent.simpleComponent);
-    assertTrue(optionalDependenciesComponent.simpleComponent.isPresent());
+    assertTrue(optionalDependenciesComponent.simpleComponent.isEmpty());
   }
 
   @ParameterizedTest
