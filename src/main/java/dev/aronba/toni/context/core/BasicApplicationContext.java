@@ -40,7 +40,7 @@ public class BasicApplicationContext implements ApplicationContext {
     Lifetime classLifetime = clazz.getAnnotation(Component.class).value();
 
     Object instance = null;
-    if (Objects.requireNonNull(classLifetime) == Lifetime.SINGELTON) {
+    if (Objects.requireNonNull(classLifetime) == Lifetime.SINGLETON) {
       instance = clazz.cast(instances.get(clazz));
     } else if (classLifetime == Lifetime.PROTOTYPE && instances.containsKey(clazz)) {
       instance = clazz.cast(this.instanceFactory.createNewInstance(clazz));

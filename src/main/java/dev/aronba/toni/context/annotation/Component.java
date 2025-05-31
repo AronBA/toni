@@ -9,5 +9,5 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 public @interface Component {
-  Lifetime value() default Lifetime.SINGELTON;
+  Lifetime value() default Lifetime.SINGLETON;
 }
